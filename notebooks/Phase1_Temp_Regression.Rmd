@@ -1,0 +1,168 @@
+---
+title: "Phase1_Temp_Regression"
+author: "Sam Sithimolada"
+date: "`r Sys.Date()`"
+output: html_document
+---
+# AAA Washington Case Overview
+
+In 1993, AAA Washington was one of the two regional automobile clubs affiliated with the American Automobile Association (AAA or Triple A) operating in Washington State. At that time, 69% of all people belonging to automobile clubs were members of the American Automobile Association, making it the largest automobile club in North America. AAA was a national association that serviced its individual members through a federation of approximately 150 regional clubs that chose to be affiliated with the national association. The national association set a certain number of minimum standards with which the affiliated clubs had to comply in order to retain their affiliation with the association. Each regional club was administered locally by its own board of trustees and management staff. The local trustees and managers were responsible for recruiting and retaining members within their assigned territories and for ensuring the financial health of the regional clubs. Beyond compliance with the minimum standards set by the AAA, each regional club was free to determine what additional products and services it would offer and how it would price these products and services.
+
+AAA Washington was founded in 1904. Its service territory consisted of 26 Washington counties west of the Columbia River. The club offered its members a variety of automobile and automobile travel-related services. Member benefits provided in cooperation with the national association included emergency road services; a rating services for lodging, restaurants, and automotive repairs shops; tour guides to AAA-approved lodging, restaurants, camping, and points of interest; and advocacy for legislation and public spending in the best interests of the motoring public. In addition to these services, AAA Washington offered its members expanded protection plans for emergency road service; financial services, including affinity credit cards, personal lines of credit, checking and savings accounts, time deposits, and no-fee American Express Travelers Cheques; access to a fleet of mobile diagnostic vans for determining the "health" of a member's vehicle; a travel agency; and an insurance agency. The club provided these services through a network of offices located in Bellevue, Bellingham, Bremerton, Everett, Lynnwood, Olympia, Renton, Seattle, Tacoma, the Tri-Cities (Pasco, Richland, and Kennewick), Vancouver, Wenatchee, and Yakima, Washington. 
+
+Club research had consistently shown that the emergency road service benefit was the primary reason that people join AAA. The importance of emergency road service in securing members was reflected in the three types of membership offered by AAA Washington: Basic, AAA Plus, and AAA Plus RV. Basic membership provided members with five miles of towing from the point at which their vehicle was disabled. AAA Plus provided members with 100 miles of towing from the point at which their vehicle was disabled. AAA plus RV provided the 100-miles towing service to members who own recreational vehicles in addition to passenger cars and light trucks. Providing emergency road service was also the club's single largest operating expense. It was projected that delivering emergency road service would cost $9.5 million, 37% of the club's annual operating budget, in the next fiscal year. 
+
+Michael DeCoria, a CPA and MBA graduate, had joined the club's management team as vice president of operations. One of the responsibilities Michael assumed was the management of emergency road service. Early in his assessment of the emergency road service operation, Mr. DeCoria discovered that emergency road service costs had increased at a rate faster than could be justified by the rate of inflation and the growth in club membership. Michael began by analyzing the way the club delivered emergency road service to determine if costs could be controlled more tightly in this area. His objective is to find a way to predict emergency road service call volume for future years.
+
+Emergency road service was delivered in one of four ways: the AAA Washington service fleet, contracting companies, reciprocal reimbursement, and direct reimbursement. AAA Washington's fleet of service vehicles responded to emergency road service calls from members who became disabled in the downtown Seattle area. Within AAA Washington's service area, but outside of downtown Seattle, commercial towing companies that had contracted with AAA Washington to provide this service responded to emergency road service calls. Members arranged for both of these types of emergency road service by calling the club's dispatch center. Should a member become disabled outside of AAA Washington's service area, the member cold call the local AAA affiliated club to receive emergency road service? The affiliate club paid for this service and then billed AAA Washington for reciprocal reimbursement through a clearing service provided by the national association. Finally, members could contract a towing company of their choice directly, paying for the towing service and then submitting a request for reimbursement to the club. AAA Washington reimbursed the actual cost of the towing or $50, whichever was less, directly to the member. After a careful examination of the club's four service delivery methods, Michael concluded that the club was controlling the cost of service delivery as tightly as was practical.
+
+Another possible source of the increasing costs was a rise in the use of emergency road service. Membership had been growing steadily for several years, but the increased cost was more than what could be attributed to simple membership growth. Michael then checked to see if there was a growth in emergency road service use on a per-member basis. He discovered that between fiscal year 1990 and fiscal year 1991, the average number of emergency road service calls per member grew by 3.28%, from an average of 0.61 calls per member to 0.63 calls. Concerned that a continuation of this trend would have a negative impact on the club financially. 
+
+The time series decomposition showed that the pattern Michael DeCoria had observed in emergency road service call volume was probably somewhat cyclical in nature. Michael would like to be able to predict emergency road service call volume for future years. Other research done by the club identified several factors that have impacted on emergency road service call volume. Among these factors is the average monthly temperature. This research has shown that emergency road service calls increase as average monthly temperature falls. 
+
+Mr. DeCoria gathered the data on emergency road service call volume and average monthly temperature presented in **aaa_washington.csv**.
+
+He hires you as a consultant to help him perform the regression analysis.
+
+## 1. Exploratory Data Analysis
+
+```{r}
+#load the data
+data = read.csv("aaa_washington.csv")
+head(data, 12)
+
+#access directly
+attach(data)
+
+#plot (x, y)
+plot(Temp, Calls, pch = 20, 
+     xlab = "Avg Monthly Temp (F)",
+     ylab = "Calls Volume",
+     main = "Temperature v Calls")
+
+```
+
+
+The scatterplot shows a negative relationship between the average monthly temperature and the amount of calls AAA receives. As temperature decreases, call volume increases and vise versa. However, there also seems to be high variation between moderately and high temperature.
+
+The correlation coefficient between temperature and call volume is calculated as:
+
+```{r}
+#cor(x, y)
+cor(Temp, Calls)
+
+```
+
+The correlation coefficient is -0.6729, which confirms a fairly moderate negative linear association.
+
+## 2. Modeling
+
+We fit a simple linear regression model using temperature as the explanatory variable
+
+```{r}
+reg.model = lm(Calls ~ Temp, data = data)
+reg.model #coefficients: intercept = 27414.1, temp = -117.6
+```
+## 2.1. Model Interpretation
+
+Estimated regression equation:
+
+Expected Calls Volume = 27414.1 - 117.6(Temp) + u
+
+This implies that for each 1 degree Farenheight decrease in temperature, calls are expected to decrease by 117.
+
+## 2.2. Goodness of Fit
+
+```{r}
+plot(Temp, Calls, pch = 20,
+     xlab = "Avg Monthly Temp (F)",
+     ylab = "Calls Volume",
+     main = "Temperature v Calls")
+lines(Temp, reg.model$fitted.values, col = "red")
+```
+
+
+```{r}
+model.summary$r.squared
+```
+
+The model's R_squared value is 0.4527, meaning that 45.27% of the variability can be explained by the model.
+
+
+## 2.3. Hypothesis Test to Check Whether the Temperature Effect Is Significant
+
+```{r}
+model.summary = summary(reg.model)
+model.summary
+```
+
+Hypothesis: 
+H_0 = 0
+H_1 =/= 0
+
+According to the test-statistic, the p-value for the temperature coefficient is statsitically significant at 5%, therefore, we can reject the null hypothesis that states the coefficient has no effect. Temperature has a statistical effect on call volume.
+
+## 3. Residual Diagnostics
+
+To ensure model validity, we assess normality, homoskedasticity, and residual independence.
+
+## 3.1. Normality of Residuals
+
+```{r}
+library(forecast)
+
+checkresiduals(reg.model)
+
+qqnorm(reg.model$residuals, pch = 20)
+qqline(reg.model$residuals)
+```
+
+The qq plot suggests that the residuals are approximately normal. It kind of frays at the ends.
+
+## 3.2. Homoskedasticity (Constant Variance)
+
+```{r}
+plot(Temp, reg.model$residuals, pch = 20)
+abline(c(0,0), lty=2) #adds line with vector of c(intercept, slope)
+```
+
+Seems homoskedastic however there is a pattern still in the residuals. There's a parabolic pattern where low and high temperatures show high variation
+
+Optimal operating temperature. Deviations away from the optimal operating temperature increases. Can create another kpi to show deviations from optimal temp to capture the deviations.
+
+## 3.3. Autocorrelation (Independence of Errors)
+
+Run Durbin-Watson test to check whether the errors are independent.
+
+```{r}
+Acf(reg.model$residuals) #autocorrelation plot
+
+#install.packages("lmtest") for dw test
+library(lmtest)
+
+#durbin watson test
+dwtest(reg.model, alternative = "two.sided")
+
+```
+
+Durbin-Watson Test:
+H_0: Errors have no autocorrelation
+H-1: Errors have autocorrelation
+
+Since the p-value is statistically significant at 5%, the null hypothesis can be rejected which states that the errors do not have autocorrelation. So we conclude there is autocorrelation and looking at ACF there seems to be serial correlation at lag 1.
+
+## 4. Conclusions and Recommendations
+
+This initial model confirms that temperature is a significant predictor of emergency road service call volume. On average, a 1°F drop is associated with 117 additional calls per month.
+
+However, diagnostic tests suggest the model can be improved:
+
+  1. Residual spread indicates non-linearity; a quadratic transformation of temperature or a new      variable (e.g., deviation from 60°F) could better capture the relationship.
+
+  2. Autocorrelation in residuals suggests that a time-series framework like ARIMA or SARIMA may      be more appropriate—this will be explored in Phase 2.
+
+  3. External drivers, such as economic indicators or lagged effects, could also provide more         predictive power and will be incorporated in future phases.
+
+This model provides a strong, interpretable foundation and highlights opportunities for refinement through time-series techniques and multi-variable regression.
+
+

@@ -1,0 +1,163 @@
+---
+title: "Phase3_ADL_Modeling"
+author: "Sam Sithimolada"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# AAA Washington Case Overview
+
+Following successful regression and ARIMA modeling phases, AAA Washington retained our consulting services to develop a more comprehensive forecasting model. Our goal in this phase is to build a time series regression model that accounts for both seasonal and economic influences on emergency road service call volume.
+
+We incorporated insights from both the operations and dispatch teams. First, engineers believe that most vehicles are optimized to operate at around 60°F. Second, the emergency services team observed sharper increases in call volume when temperatures dip slightly below the 30s, suggesting a nonlinear relationship. Additionally, Michael DeCoria believes emergency service demand is partially driven by broader economic conditions, and has recommended the Washington State unemployment rate as a relevant cyclical indicator.
+
+## 1. Exploratory Data Analysis
+
+We began by importing the dataset `aaa_washington.csv` and creating time series objects for call volume, average monthly temperature, and unemployment rate. Plots of each series show a strong seasonal pattern, especially in temperature and call volume. The unemployment rate exhibits cyclical fluctuations and possible seasonality, with a trend resembling a quadratic form.
+
+```{r}
+data = read.csv("aaa_washington.csv")
+call.ts = ts(data$Calls, start = c(1988, 8), frequency = 12)
+temp.ts = ts(data$Temp, start = c(1988, 8), frequency = 12)
+rate.ts = ts(data$Rate, start = c(1988, 8), frequency = 12)
+```
+
+```{r Call Vol Graph}
+library(forecast)
+autoplot(call.ts, main = "Monthly AAA Call Volume", ylab = "Call Volume")
+```
+
+```{r Temp Graph}
+autoplot(temp.ts, main = "Monthly Washington State Avg Temp", 
+         ylab = "Avg Temp (F)")
+```
+
+```{r Unemployment Rate Graph}
+autoplot(rate.ts, main = "Monthly Washington State Unemployment Rate", 
+         ylab = "Unemployment Rate")
+```
+
+Visual inspection confirms that call volume dips mid-year and rises again toward winter, while temperatures follow an opposite seasonal trajectory. The unemployment rate shows broader cyclical movement.
+
+## 1.1. Temperature Transformation
+
+To reflect engineering insights, we created a new temperature variable by repositioning the scale around 60°F and taking the absolute deviation from this optimal operating point. This transformation revealed a more linear relationship between temperature deviation and call volume compared to the original temperature series, which displayed a nonlinear, possibly quadratic relationship.
+
+```{r}
+newtemp.ts = abs(temp.ts - 60)
+
+#plot(newtemp.ts, call.ts) #gets messy because it plots years
+
+#use as.vector(ts) to plot
+#temp vs calls
+plot(as.vector(temp.ts,), as.vector(call.ts),
+     main = "Call Vol v Temp", xlab = "Temp", ylab = "call volume")
+
+#newtemp vs calls
+plot(as.vector(newtemp.ts,), as.vector(call.ts),
+     main = "Call Vol v Temp Deviated from 60F", xlab = "Temp from 60", ylab = "call volume")
+```
+
+
+## 1.2. Lag Analysis: Economic Indicator
+
+Cross-correlation analysis between the unemployment rate and call volume showed that the unemployment rate leads call volume, with the strongest correlation at a lag of 11 months. A secondary, smaller peak appeared at lag 3. Based on this, we created lagged unemployment variables for further modeling.
+
+```{r, cross-correlation between unemployment rate and calls}
+
+#Ccf(X, y, lags)
+Ccf(rate.ts, call.ts) 
+
+#use +-12 lags because they are insignificant beyond that (no spikes)
+ccf.val = Ccf(rate.ts, call.ts, 12)
+
+#filter only negative lags
+negative_lags = ccf.val$lag<0
+negative_acf = ccf.val$acf[negative_lags]
+negative_lags_only = ccf.val$lag[negative_lags]
+
+#finds index of max ccf in negative lags (t/f)
+index = which(negative_acf == max(negative_acf))
+
+#retrieves lag corresponding to max correl for which index is true
+negative_lags_only[index]
+```
+
+# 2. Modeling: Univariate Lagged Models
+
+We developed two simple regression models using lagged unemployment rates. Both models show the lagged unemployment variables to be statistically significant at 5%. However, their explanatory power was limited:
+- Adjusted R²: 7.35%
+- RMSE: ~1546
+- MAPE: 6.16%
+
+These models alone are insufficient for forecasting call volume with high accuracy.
+
+```{r, univariate lag models}
+#lag unemployment rate variables
+leadrate3 = lag(rate.ts, -3)
+leadrate11 = lag(rate.ts, -11)
+
+#tslm models with lag3 and lag10 of unemployment rate on call volume
+model_lag3 = tslm(call.ts~leadrate3)
+model_lag11 = tslm(call.ts~leadrate11)
+```
+
+```{r, Checking Lag Unemployment Rate Variable Significance}
+#summary table
+summary(model_lag3)
+summary(model_lag11)
+
+#rmse
+accuracy(model_lag3)[2]
+accuracy(model_lag11)[2]
+
+#mape
+accuracy(model_lag3)[5]
+accuracy(model_lag10)[5]
+```
+
+## 2.1 Multivariate Time Series Regression Model
+
+Next, we combined the transformed temperature variable and the 11-month lagged unemployment rate into a multiple regression model.
+
+```{r, Multiple Regression Model with NewTemp and Lagged Unemployment Rate Variables}
+model_temp_lag11 = tslm(call.ts ~ newtemp.ts + leadrate11)
+
+summary(model_temp_lag11)
+
+#rmse
+accuracy(model_temp_lag11)[2]
+
+#mape
+accuracy(model_temp_lag11)[5]
+```
+
+In this model:
+- The temperature deviation was statistically significant (p < 0.05).
+- The unemployment rate (leadrate11) was not significant individually, but improved overall model performance.
+
+Model performance improved substantially:
+- Adjusted R²: 57.11%
+- RMSE: 1041.91
+- MAPE: 3.58%
+
+## 3. Residual Diagnostics
+
+Diagnostic checks on the residuals indicate that the model may not fully satisfy all assumptions:
+- Residuals appear normally distributed.
+- ACF plot shows significant autocorrelation at lag 1 and 2, suggesting residual dependence.
+- Durbin-Watson test confirms the presence of serial correlation (p < 0.05).
+- Durbin-Watson Test:
+    H_0: Errors have no autocorrelation
+    H-1: Errors have autocorrelation
+
+```{r}
+checkresiduals(model_temp_lag11)
+dwtest(model_temp_lag11)
+```
+
+## 4. Conclusion and Final Recommendation
+
+The most effective model combines the transformed temperature deviation from 60°F and the unemployment rate lagged by 11 months. While the unemployment variable is not statistically significant in isolation, its inclusion enhances the model’s predictive power, resulting in a much lower forecast error. With a MAPE of just 3.58% and an adjusted R² exceeding 57%, this model offers a practical and reliable forecasting tool for emergency road service demand.
+
+However, we recommend further refining the model to address the residual autocorrelation. Incorporating ARIMA-style residual corrections or switching to an ADL-ARIMA hybrid may further improve model robustness and accuracy in future work.
