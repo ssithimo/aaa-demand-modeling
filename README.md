@@ -16,10 +16,10 @@ AAA Washington noticed that call volumes were increasing faster than membership 
 
 - **Goal**: Assess whether daily average temperature predicts call volume.
 - **Methods**: Simple linear regression.
-- **Key Insight**: Call volume increases as temperature drops. The model explains **~51%** of the variance.
+- **Key Insight**: Call volume increases as temperature drops. The model explains **~45%** of the variance.
 - **Limitations**: Residuals showed non-constant variance and autocorrelation.
 
-> 📄 `Phase1_Temperature_Regression.Rmd`
+> 📄 `Phase1_Temp_Regression.Rmd`
 
 ---
 
@@ -27,10 +27,10 @@ AAA Washington noticed that call volumes were increasing faster than membership 
 
 - **Goal**: Model temporal patterns in call volume not explained by temperature.
 - **Methods**: Seasonal ARIMA (Box-Jenkins approach).
-- **Key Insight**: SARIMA(1,0,0)(1,1,0)[12] performed best, with **MAPE ~4.4%** on test data.
+- **Key Insight**: SARIMA(1,0,0)(1,1,0)[12] performed best, with **MAPE ~2.5%** on test data.
 - **Strengths**: Captured seasonality and lag structures better than linear regression.
 
-> 📄 `Phase2_ARIMA_Modeling.Rmd`
+> 📄 `Phase2_SARIMA_Modeling.Rmd`
 
 ---
 
@@ -39,11 +39,11 @@ AAA Washington noticed that call volumes were increasing faster than membership 
 - **Goal**: Build a multivariate model including:
   - Transformed temperature (distance from optimal 60°F)
   - Lagged unemployment rate (economic proxy)
-- **Methods**: Time series regression (ADL model).
-- **Key Insight**: Model explains **~64%** of variation with **MAPE ~3.4%**.
+- **Methods**: Multivariate time series regression (ADL model).
+- **Key Insight**: Model explains **~57%** of variation with **MAPE ~3.6%**.
 - **Business Value**: Stronger predictive power using operational and macroeconomic indicators.
 
-> 📄 `Phase3_ADL_Multivariate_Modeling.Rmd`
+> 📄 `Phase3_ADL_Modeling.Rmd`
 
 ---
 
@@ -51,10 +51,10 @@ AAA Washington noticed that call volumes were increasing faster than membership 
 
 | File | Description |
 |------|-------------|
-| `Phase1_Temperature_Regression.Rmd` | Linear regression analysis |
+| `Phase1_Temp_Regression.Rmd` | Linear regression analysis |
 | `Phase2_ARIMA_Modeling.Rmd` | Seasonal ARIMA modeling |
-| `Phase3_ADL_Multivariate_Modeling.Rmd` | ADL regression with temp & unemployment |
-| `data/AAA.csv` | Cleaned data set with monthly call volume, temperature, state unemployment rate, rainfall average, and membership data|
+| `Phase3_ADL_Modeling.Rmd` | ADL regression with temp & unemployment |
+| `data/aaa_washington.csv` | Cleaned data set with monthly call volume, temperature, state unemployment rate, rainfall average, and membership data|
 
 ---
 
