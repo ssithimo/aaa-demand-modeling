@@ -1,0 +1,237 @@
+---
+title: "Phase2_SARIMA_Modeling"
+author: "Sam Sithimolada"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# AAA Washington Case Overview
+
+In 1993, AAA Washington was one of the two regional automobile clubs affiliated with the American Automobile Association (AAA) operating in Washington State.
+
+Club research had consistently shown that the emergency road service benefit was the primary reason that people join AAA. Providing emergency road service was also the club's single largest operating expense. It was projected that delivering emergency road service would cost $9.5 million, 37% of the club's annual operating budget, in the next fiscal year. 
+
+Michael DeCoria's objective is to find a way to predict emergency road service call volume for future years.The data on emergency road service call volume is given in **aaa_washington.csv**. 
+
+My previous analysis in phase 1 addressed the effect of average monthly temperature on emergency road service call volume. I've found that the temperature's effect is significant and could explain about half of call volume variability. However, residual diagnostics revealed autocorrelation patterns that temperature alone could not explain. I have recommended Michael to model these patterns using ARIMA models in phase 2.
+
+## 1. Exploratory Data Analysis
+
+We analyze monthly emergency call volumes from May 1988 to August 1992. The time series is plotted to identify patterns such as trend, seasonality, and variance.
+
+```{r}
+aaa = read.csv("aaa_washington.csv")
+aaa.ts = ts(aaa$Calls, start = c(1988, 05), freq = 12)
+
+library(forecast)
+autoplot(aaa.ts/1000, main = "AAA calls volume",
+         xlab = "time (months)", ylab = "calls volume(1,000s)")
+```
+
+The series exhibits strong annual seasonality where it dips then increases throughout the year but no clear trend, suggesting that differencing for seasonality may be necessary, but non-seasonal differencing is not required  (d = 0).
+
+## 2. Model Identification
+
+We split the data into a training set (May 1988 – February 1992) and a validation set (last 6 months). We examine autocorrelation and partial autocorrelation to identify potential models.
+
+```{r}
+nvalid = 6
+train.ts = head(aaa.ts, length(aaa.ts)-nvalid)
+test.ts = tail(aaa.ts, nvalid)
+
+#nonseasonal portion
+par(mfrow = c(1, 2))
+Acf(train.ts, 10)
+Pacf(train.ts, 10)
+par(mfrow = c(1, 1))
+
+#seasonal portion long term
+par(mfrow = c(1, 2))
+Acf(train.ts, length(aaa.ts)-nvalid)
+Pacf(train.ts, length(aaa.ts)-nvalid)
+par(mfrow = c(1, 1))
+
+#deseason data: diff(data.ts, lag) vs ordered diff: diff(data.ts, lag = #)
+
+#deseason data at lag 12 since season period is annual, non-seasonal portion
+par(mfrow = c(1, 2))
+Acf(diff(train.ts, 12), 10)
+Pacf(diff(train.ts, 12), 10)
+par(mfrow = c(1, 1))
+
+#deseason data at lag 12 since season period is annual, seasonal portion
+par(mfrow = c(1, 2))
+Acf(diff(train.ts, 12), length(aaa.ts)-nvalid)
+Pacf(diff(train.ts, 12), length(aaa.ts)-nvalid)
+par(mfrow = c(1, 1))
+```
+
+Seasoned Data:
+ACF is showing gradual decay and a significant drop at lag 1 in the PACF plot from the non-seasonal portion. From this description, we can say that AR(1) is a likely model from the non-seasonal portion. Also, looking at the ACF we can also say it too is cutting off at lag 1 (ARMA (1,1), no inidications for it because they both cutoff).
+
+Seasonal portion: at multiples of 12, we see that the ACF is gradually decaying while the PACF shows a significant cutoff at lag 1. SAR(1) model seems appropriate.
+
+Models from this assessment:
+----------------------------
+
+SARIMA (1, 0, 0)x(1, 0, 0)12 -> nonseasonal is AR1, seasonal AR1
+SARIMA (1, 0, 1)x(1, 0, 0)12 -> nonseasonal both cutoff at lag 1 might be AR1 and MA1, seasonal AR1
+
+Deseasoned Data:
+After de-seasoning the data, we see no seasonal pattern as they are all statistically significant even at lag 1, hence SARIMA(0, 0, 0)x(0, 1, 0)12. We can try (ARMA(1,1)) since it's not clear what is going on for the non-seasonal portion. We can try MA(1) since PACF shows gradual decay while ACF shows a clear cut off at lag 1 for non-seasonal portion.
+
+Models from this assessment:
+----------------------------
+SARIMA (0, 0 ,0)x(0, 1, 0)12 -> since all lags are statistically significant in both the non-seasonal and seasonal portions.
+SARIMA (1, 0, 1)x(0, 1, 0)12 -> ARMA(1,1)
+SARIMA (0, 0, 1)x(0, 1, 0)12 -> MA(1)
+
+Most likely seen pattern was SARIMA(1, 0, 0)x(1, 0, 0)12
+
+## 3. Model Estimation and Evaluation
+
+After a quick discussion with Michael I've decided to check the performance of the following models:
+
+M1:  SARIMA(1,0,0)x(1,0,0)12 
+M2:  SARIMA(1,0,0)x(1,1,0)12 
+M3:  SARIMA(1,0,0)x(0,1,0)12 
+M4:  SARIMA(1,0,1)x(0,1,0)12 
+M5:  SARIMA(0,0,1)x(0,1,0)12
+M6:  SARIMA(1,1,1)x(0,1,1)12
+
+```{r}
+#fit model w/train data
+
+#SARIMA(100)x(100)12
+m1 = Arima(train.ts, order = c(1, 0, 0), 
+           seasonal = list(order = c(1, 0, 0)))
+#SARIMA(100)x(110)12
+m2 = Arima(train.ts, order = c(1, 0, 0), 
+           seasonal = list(order = c(1, 1, 0),
+           period = 12))
+#SARIMA(100)x(010)12
+m3 = Arima(train.ts, order = c(1, 0, 0), 
+           seasonal = list(order = c(0, 1, 0),
+           period = 12))
+#SARIMA(101)x(010)12
+m4 = Arima(train.ts, order = c(1, 0, 1), 
+           seasonal = list(order = c(0, 1, 0),
+           period = 12))
+#SARIMA(001)x(010)12
+m5 = Arima(train.ts, order = c(0, 0, 1), 
+           seasonal = list(order = c(0, 1, 0),
+           period = 12))
+#SARIMA(111)x(011)12
+m6 =  Arima(train.ts, order = c(1, 1, 1), 
+           seasonal = list(order = c(0, 1, 1),
+           period = 12))
+
+#predict models for test length (nvalid)
+m1_pred = forecast(m1, h = nvalid, level = 0)
+m2_pred = forecast(m2, h = nvalid, level = 0)
+m3_pred = forecast(m3, h = nvalid, level = 0)
+m4_pred = forecast(m4, h = nvalid, level = 0)
+m5_pred = forecast(m5, h = nvalid, level = 0)
+m6_pred = forecast(m6, h = nvalid, level = 0)
+
+#assess model accuracy
+accuracy(m1_pred, test.ts)
+accuracy(m2_pred, test.ts)
+accuracy(m3_pred, test.ts)
+accuracy(m4_pred, test.ts)
+accuracy(m5_pred, test.ts)
+accuracy(m6_pred, test.ts)
+```
+
+Model1:
+-------
+MAPE Train: 4.37%
+MAPE Test: 2.46%
+RMSE Train: 1167.91
+RMSE Test: 737.81
+
+Model2:
+-------
+MAPE Train: 3.75%
+MAPE Test: 2.51%
+RMSE Train: 1144.81
+RMSE Test: 630.77
+
+Model3:
+-------
+MAPE Train: 3.85%
+MAPE Test: 2.65%
+RMSE Train: 1185.46
+RMSE Test: 665.72
+
+Model4:
+-------
+MAPE Train: 3.75%
+MAPE Test: 2.71%
+RMSE Train: 1158.93
+RMSE Test: 650.94
+
+Model5:
+-------
+MAPE Train: 3.55%
+MAPE Test: 2.59%
+RMSE Train: 1160.37
+RMSE Test: 632.25
+
+Model6:
+-------
+MAPE Train: 3.34%
+MAPE Test: 4.32%
+RMSE Train: 1008.96
+RMSE Test: 1061.07
+
+
+Model 2 (SARIMA(1,0,0)x(1,1,0)12) emerges as the most reliable and well-balanced forecasting model. It achieves a test MAPE of 2.51% and the lowest test RMSE of 630.77, indicating strong predictive accuracy on unseen data and minimal forecast error. While Model 1 has the lowest test MAPE at 2.46%, its higher test RMSE of 737.81 suggests slightly less precision in point forecasts compared to Model 2. Model 5 also performs competitively with a test MAPE of 2.59% and a test RMSE of 632.25, making it a solid secondary option.
+
+In contrast, Model 6, despite having the lowest training error, performs poorly on the test set with a MAPE of 4.32% and RMSE of 1,061.07. This large gap between training and test performance indicates overfitting and reduced generalizability. Overall, Model 2 offers the most dependable forecast performance and is the recommended model for predicting future emergency road service call volumes with an expected forecast error of approximately 2.5%.
+
+## 4. Residual Diagnostics
+
+We validate Model 2's assumptions using residual plots
+
+```{r}
+#check the best model's assumptions
+checkresiduals(m2)
+```
+
+The model shows fairly constant variance with the exception of an outlier at February 1991. The residuals are also not normally distributed as it seems skewed to the left. The ACF plot shows there is independence as no lags are showing significant values indicating they are not serially correlated. Overall, most of the model's assumptions are met (2/3) and is appropriate for use.
+
+## 5. Forecasting and Recommendations
+
+We retrain the chosen model on the entire dataset and forecast 17 months ahead to reach January 1994.
+
+```{r}
+#retrain model with all data and forecast for january 1994
+#because we have data to 08/1992, we need to forecast 1 year and 5 months
+#hence h = 17 months
+#model 2: SARIMA(1,0,0)x(1,1,0)12
+
+best_model = Arima(aaa.ts, order = c(1, 0, 0), 
+           seasonal = list(order = c(1, 1, 0),
+           period = 12))
+best_model_pred = forecast(best_model, h = 17, level = 0)
+
+jan_1994_forecast = tail(best_model_pred$mean, 1) #$mean refers to point forecast
+jan_1994_forecast
+```
+
+```{r, plot forecasted values with raw data}
+autoplot(aaa.ts/1000, main = "AAA Call Volume",
+         xlab = "Time (Months)", ylab = "Call Volume(1,000s)")+
+  autolayer(best_model_pred$mean/1000, series = "Forecast")
+```
+
+
+
+Our analysis of AAA Washington's emergency road side service call volume data revealed significant seasonality with a period of 12 months, implying some serial correlation. To capture these patterns, we developed an ARIMA model and came with the best model: SARIMA model with parameters (1, 0, 0)x(1, 1, 0)12. The recommended model yields a MAPE of 2.51% on unseen data and that is also the expected error rate with any forecast using this model.
+
+For January 1994, the forecasted calls volume is approximately 22,585. You can expect a forecast in the range of 22,018 and 23,152 given the expected 2.51% error rate.
+
+This model offers AAA Washington a reliable tool for operational and financial planning, while future enhancements may incorporate external drivers or move toward dynamic regression and state-space models.
