@@ -1,49 +1,102 @@
-# 📈 AAA Call Volume Forecasting
+# 🚗 AAA Washington — Emergency Road Service Demand Forecasting
 
-This project was conducted to help AAA Washington forecast emergency roadside assistance call volume — a service that represents over one-third of the organization’s operating budget. Through three modeling phases, we applied statistical and time series methods to predict call volume and extract actionable business insights.
-
----
-
-## 🧩 Problem Context
-
-AAA Washington noticed that call volumes were increasing faster than membership growth or inflation could explain. The operations VP hired me to investigate potential drivers and build models to improve forecasting accuracy for operational and financial planning.
+> *Call volumes were rising faster than membership growth could explain. The operations VP needed to know why and how to plan for it.*
 
 ---
 
-## 🚦 Project Phases
+## 🧩 Business Context
+Emergency roadside service represents over one-third of AAA Washington's operating budget. When call volume exceeds forecast, the organization 
+faces unplanned overtime costs and service delays. When it falls short, resources sit idle. Either direction is expensive.
 
-### 📊 Phase 1: Linear Regression on Temperature
+AAA Washington's operations VP noticed call volumes were rising faster than membership growth or inflation could explain and needed two things: 
+an explanation of what was actually driving demand, and a reliable forecast to support staffing and budget planning.
 
-- **Goal**: Assess whether daily average temperature predicts call volume.
-- **Methods**: Simple linear regression.
-- **Key Insight**: Call volume increases as temperature drops. The model explains **~45%** of the variance.
-- **Limitations**: Residuals showed non-constant variance and autocorrelation.
-
-> 📄 `Phase1_Temp_Regression.Rmd`
+This project worked through three iterative modeling phases to answer both questions.
 
 ---
 
-### 🔁 Phase 2: SARIMA Time Series Forecasting
+## 🚦 Modeling Approach
 
-- **Goal**: Model temporal patterns in call volume not explained by temperature.
-- **Methods**: Seasonal ARIMA (Box-Jenkins approach).
-- **Key Insight**: SARIMA(1,0,0)(1,1,0)[12] performed best, with **MAPE ~2.5%** on test data.
-- **Strengths**: Captured seasonality and lag structures better than linear regression.
+### Phase 1: Temperature Regression
 
-> 📄 `Phase2_SARIMA_Modeling.Rmd`
+**Question:** Does temperature predict call volume?
+
+Simple linear regression revealed that call volume increases as temperature drops, with the model explaining approximately 45% of variance. The relationship seemed intuitive as colder weather causes more vehicle failures. However, residuals showed non-constant variance and autocorrelation, indicating temperature alone was insufficient and temporal patterns needed to be modeled explicitly.
+
+> Notebook: `Phase1_Temp_Regression.Rmd`
 
 ---
 
-### 🧮 Phase 3: ADL Model with Exogenous Variables
+### Phase 2: SARIMA Time Series Forecasting
 
-- **Goal**: Build a multivariate model including:
-  - Transformed temperature (distance from optimal 60°F)
-  - Lagged unemployment rate (economic proxy)
-- **Methods**: Multivariate time series regression (ADL model).
-- **Key Insight**: Model explains **~57%** of variation with **MAPE ~3.6%**.
-- **Business Value**: Stronger predictive power using operational and macroeconomic indicators.
+**Question:** What temporal patterns exist beyond temperature?
 
-> 📄 `Phase3_ADL_Modeling.Rmd`
+A seasonal ARIMA model (SARIMA(1,0,0)(1,1,0)[12]) captured monthly seasonality and lag structures that pure regression missed, achieving MAPE of 2.5% on test data. This established a strong time series baseline but left room to incorporate the economic and environmental drivers identified in Phase 1.
+
+> Notebook: `Phase2_ARIMA_Modeling.Rmd`
+
+---
+
+### Phase 3: ADL Model with Exogenous Variables
+
+**Question:** Can macroeconomic and environmental factors improve accuracy?
+
+An Autoregressive Distributed Lag (ADL) model incorporated two engineered variables:
+
+- **Temperature deviation from 60°F**
+
+  centered at the threshold below which vehicle failures accelerate, improving linearity
+  
+- **Lagged unemployment rate**
+  identified via cross-correlation analysis as a leading economic indicator of call volume, reflecting that economic stress correlates with deferred vehicle maintenance
+
+The ADL model explained 57% of call volume variation at MAPE of 3.6%. While MAPE is slightly higher than the pure SARIMA model, the ADL model provides something SARIMA cannot: an explanation of *why* volume changes, giving operations leadership levers to anticipate demand shifts before they appear in the data.
+
+> Notebook: `Phase3_ADL_Modeling.Rmd`
+
+---
+
+## 📊 Model Comparison
+
+| Model | MAPE | Variance Explained | Business Value |
+|-------|------|-------------------|----------------|
+| Temperature Regression | — | ~45% | Identifies temperature as primary driver |
+| SARIMA(1,0,0)(1,1,0)[12] | 2.5% | — | Best raw forecast accuracy |
+| ADL (Temp + Unemployment Lag) | 3.6% | ~57% | Explains drivers, supports planning |
+
+SARIMA wins on forecast accuracy. ADL wins on interpretability and operational utility. For budget and staffing planning, the ADL model is the more actionable output — it tells us not just what call volume will be, but what conditions are driving it.
+
+---
+
+## 🧠 Key Findings
+
+1. **Temperature deviation from 60°F is the primary demand driver**
+
+   vehicle failure rates accelerate as temperatures drop below this threshold, making it the single most reliable predictor of high-volume service periods. Winter staffing decisions should be anchored to temperature forecasts.
+
+2. **Unemployment rate predicts call volume with a lag**
+
+   when unemployment rises, members defer vehicle maintenance, leading to higher failure rates and service calls several months later. This gives operations leadership an early warning signal available from public economic data before the demand spike arrives.
+
+3. **Call volume has strong seasonal structure**
+
+   SARIMA's 2.5% MAPE confirms that monthly patterns are highly predictable from historical data alone, providing a reliable baseline for annual budget planning.
+
+---
+
+## 📝 Operational Recommendations
+
+1. **Use SARIMA for annual budget forecasting**
+
+   its 2.5% MAPE provides a reliable baseline for headcount and resource planning at the yearly planning cycle
+
+3. **Use ADL for in-season operational adjustments**
+
+   when unemployment trends upward or temperature forecasts show an unusually cold period approaching, the ADL model quantifies the expected demand impact before it arrives
+
+5. **Monitor unemployment rate as a leading indicator**
+
+   publicly available monthly unemployment data can be fed directly into the ADL model to generate rolling demand updates without additional data collection
 
 ---
 
@@ -51,32 +104,16 @@ AAA Washington noticed that call volumes were increasing faster than membership 
 
 | File | Description |
 |------|-------------|
-| `Phase1_Temp_Regression.Rmd` | Linear regression analysis |
+| `Phase1_Temp_Regression.Rmd` | Linear regression on temperature |
 | `Phase2_ARIMA_Modeling.Rmd` | Seasonal ARIMA modeling |
-| `Phase3_ADL_Modeling.Rmd` | ADL regression with temp & unemployment |
-| `data/aaa_washington.csv` | Cleaned data set with monthly call volume, temperature, state unemployment rate, rainfall average, and membership data|
+| `Phase3_ADL_Modeling.Rmd` | ADL model with temperature and unemployment |
+| `data/aaa_washington.csv` | Monthly call volume, temperature, unemployment, rainfall, membership |
+| `Executive_Summary_AAA_ERS_Demand.pdf` | One-page non-technical summary |
 
 ---
 
-## 🛠 Technologies Used
+## 🔧 Tools
+R, RMarkdown, `forecast`, `lmtest`, `ggplot2`, `tslm`
+Time Series: SARIMA, ADL, Cross-Correlation Function (CCF)
+Diagnostics: ACF, QQ plots, Durbin-Watson test
 
-- R & RMarkdown
-- `forecast`, `lmtest`, `ggplot2`, `tslm`
-- Time Series Analysis (ARIMA, SARIMA)
-- Regression Modeling (Linear, Autoregressive Distributive Lag)
-- Cross-Correlation Function (CCF)
-- Residual Diagnostics (ACF, QQ plots, Durbin-Watson test)
-
----
-
-## 🧠 Key Takeaways
-
-- Emergency service call volume is driven by **seasonal**, **temperature**, and **economic** factors.
-- Time series regression using transformed variables improved forecast accuracy.
-- Multiphase modeling showed an understanding of iterative, stakeholder-driven analytics.
-
----
-
-## 📬 Contact
-
-Feel free to reach out with questions, collaborations, or feedback.
