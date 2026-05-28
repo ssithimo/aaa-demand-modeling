@@ -108,7 +108,7 @@ SARIMA wins on forecast accuracy. ADL wins on interpretability and operational u
 | `Phase2_ARIMA_Modeling.Rmd` | Seasonal ARIMA modeling |
 | `Phase3_ADL_Modeling.Rmd` | ADL model with temperature and unemployment |
 | `data/aaa_washington.csv` | Monthly call volume, temperature, unemployment, rainfall, membership |
-| `Executive_Summary_AAA_ERS_Demand.pdf` | One-page non-technical summary |
+| `executive-summary-aaa.pdf` | One-page non-technical summary |
 
 ---
 
