@@ -131,7 +131,7 @@ MONTH_NAMES = {
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    df = pd.read_csv('aaa_washington.csv')
+    df = pd.read_csv('data/aaa_washington.csv')
     df['date'] = pd.to_datetime(df['date'])
     df['newtemp'] = abs(df['Temp'] - 60)
     df['lagrate11'] = df['Rate'].shift(11)
